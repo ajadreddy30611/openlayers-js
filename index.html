@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OpenLayers Map with GeoServer Image Layer</title>
+    <link rel="stylesheet" href="https://openlayers.org/en/v6.14.0/css/ol.css" type="text/css">
+    <script src="https://openlayers.org/en/v6.14.0/build/ol.js"></script>
+    <style>
+        /* Set the size of the map container */
+        #map {
+            width: 100%;
+            height: 400px;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <script>
+        ol.proj.useGeographic();
+
+        // Define the GeoServer WMS layer
+        var imageLayer = new ol.layer.Tile({
+            source: new ol.source.TileWMS({
+                url: 'http://localhost:8080/geoserver/wms/',
+                params: {
+                    // 'LAYERS': 'Tiff_Layers:119_images_A_VEHS_C2FPA019724SS013882_0601_019724_03082021DIP_001_DQ_ort_roi', // Adjust this to match your layer name
+                    'LAYERS': 'Tiff_Layers:Images_airport', // Adjust this to match your layer name
+                    'TILED': true
+                },
+                serverType: 'geoserver'
+            })
+        });
+
+        // Define the base OpenStreetMap layer
+        var baseLayer = new ol.layer.Tile({
+            source: new ol.source.OSM()
+        });
+
+        
+        // function calculateImageCenter() {
+        //     var imageExtent = imageLayer.getSource().getExtent();
+        //     var center = ol.extent.getCenter(imageExtent);
+        //     map.getView().setCenter(center);
+        //     console.log(center)
+        // }
+
+        // // Update center when the image layer is loaded
+        // imageLayer.getSource().on('tileloadend', function() {
+        //     calculateImageCenter();
+        // });
+        var map_center = [0,0]
+        // var layer_name = "119_images_A_VEHS_C2FPA019724SS013882_0601_019724_03082021DIP_001_DQ_ort_roi"
+        var layer_name = "Images_airport"
+        const geoserverURL = "http://localhost:8080/geoserver/rest/workspaces/Tiff_Layers/";
+        const username = "admin";
+        const password = "geoserver";
+        const base64 = window.btoa(username + ":" + password);
+        const getExtentOptions = {
+          method: "GET",
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            Accept: "application/json",
+            Authorization: "Basic " + base64,
+            "Content-Type": "application/xml",
+          },
+        };
+        function setMapCenter(layername) {
+          // console.log(layername);
+          var new_center = [];
+          fetch(
+              geoserverURL + "coveragestores/" + layername + "_store" + "/coverages/" + layername + ".json",
+              getExtentOptions
+          )
+          .then(function(response) {
+              return response.json();
+          })
+          .then(function(json) {
+              var cx =
+                  (json["coverage"]["latLonBoundingBox"]["minx"] +
+                  json["coverage"]["latLonBoundingBox"]["maxx"]) /
+                  2;
+              var cy =
+                  (json["coverage"]["latLonBoundingBox"]["miny"] +
+                  json["coverage"]["latLonBoundingBox"]["maxy"]) /
+                  2;
+              new_center.push(cy);
+              new_center.push(cx);
+              console.log(new_center);
+              map_center = new_center;
+              // setCenter(new_center); // Assuming setCenter is a function you've defined elsewhere
+          });
+        }
+        setMapCenter(layer_name);
+
+        // Create a map
+        var map = new ol.Map({
+            target: 'map',
+            layers: [
+                baseLayer,
+                imageLayer
+            ],
+            view: new ol.View({
+              
+                center: map_center, // Center the map at a specific location
+                zoom: 2 // Initial zoom level
+            })
+        });
+    </script>
+</body>
+</html>
